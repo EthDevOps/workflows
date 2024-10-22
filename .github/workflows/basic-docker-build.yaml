@@ -14,6 +14,13 @@ on:
       docker_registry_project:
         default: ethquokkaops
         type: string
+      use_artifact:
+        type: boolean
+        default: false
+      artifact_path:
+        type: string
+      artifact_name:
+        type: string
     secrets:
       docker_registry_user:
         required: true
@@ -33,6 +40,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.artifact_path }}
+        if: ${{ inputs.use_artifact }}
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache

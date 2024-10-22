@@ -10,11 +10,9 @@ on:
     inputs:
       docker_registry:
         default: docker.ethquokkaops.io
-        required: true
         type: string
       docker_registry_project:
         default: ethquokkaops
-        required: true
         type: string
     secrets:
       docker_registry_user:

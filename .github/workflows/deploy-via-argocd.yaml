@@ -1,0 +1,66 @@
+name: Deploy via ArgoCD
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+on:
+  workflow_call:
+    inputs:
+      team:
+        type: string
+      project:
+        type: string
+    secrets:
+      cypher_client_id:
+        required: true
+      cypher_client_secret:
+        required: true
+
+jobs:
+  deploy-to-argocd:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - create-docker-image
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Infisical/secrets-action@v1.0.7
+        with:
+          client-id: ${{ secrets.cypher_client_id }} # Update this to your own Github references
+          client-secret: ${{ secrets.cypher_client_secret }} # Update this to your own Github references
+          env-slug: "prod"
+          secret-path: "/"
+          project-slug: "gh-actions-deploy-65-js"
+          domain: "https://cypher.ethquokkaops.io"
+      
+      - name: Checkout the iac repository
+        uses: actions/checkout@v4
+        with:
+          repository: ethdevops/internal-stack-iac
+          ref: main
+          token: ${{ env.GH_IAC_TOKEN }} # Use the GitHub token for authentication
+          path: internal-stack-iac
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Get current tag
+        id: get_tag
+        run: echo "TAG=$(echo ${GITHUB_REF#refs/tags/})" >> $GITHUB_ENV
+
+      - name: Update values.version.yaml
+        run: |
+          echo "imageVersion: $TAG" > internal-stack-iac/${{ inputs.team }}/${{ inputs.project }}/argocd/values.version.yaml
+      
+
+      - name: Commit and push changes
+        run: |
+          cd internal-stack-iac
+          git add ethquokkaops/${{ inputs.team }}/${{ inputs.project }}/values.version.yaml
+          git commit -m "Deploy ${{ inputs.team }}/${{ inputs.project }} to $TAG"
+          git push origin main

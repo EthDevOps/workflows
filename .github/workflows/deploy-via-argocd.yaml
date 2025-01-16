@@ -52,7 +52,7 @@ jobs:
 
       - name: Update values.version.yaml
         run: |
-          echo "imageVersion: $TAG" > internal-stack-iac/${{ inputs.team }}/${{ inputs.project }}/argocd/values.version.yaml
+          echo "simple-website:\n  imageVersion: $TAG" > internal-stack-iac/${{ inputs.team }}/${{ inputs.project }}/argocd/values.version.yaml
       
 
       - name: Commit and push changes

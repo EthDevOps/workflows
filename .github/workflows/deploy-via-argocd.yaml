@@ -29,7 +29,7 @@ jobs:
           client-id: ${{ secrets.cypher_client_id }} # Update this to your own Github references
           client-secret: ${{ secrets.cypher_client_secret }} # Update this to your own Github references
           env-slug: "prod"
-          secret-path: "/"
+          secret-path: "/deploy"
           project-slug: "gh-actions-deploy-65-js"
           domain: "https://cypher.ethquokkaops.io"
       

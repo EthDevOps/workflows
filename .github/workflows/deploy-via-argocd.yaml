@@ -58,6 +58,6 @@ jobs:
       - name: Commit and push changes
         run: |
           cd internal-stack-iac
-          git add ethquokkaops/${{ inputs.team }}/${{ inputs.project }}/values.version.yaml
+          git add ${{ inputs.team }}/${{ inputs.project }}/argocd/values.version.yaml
           git commit -m "Deploy ${{ inputs.team }}/${{ inputs.project }} to $TAG"
           git push origin main

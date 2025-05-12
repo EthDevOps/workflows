@@ -24,7 +24,7 @@ jobs:
       id-token: write
     runs-on: ubuntu-latest
     steps:
-      - uses: Infisical/secrets-action@v1.0.7
+      - uses: Infisical/secrets-action@08d433afae6a851f9081d0563a01a55fdf96568b # v1.0.11
         with:
           client-id: ${{ secrets.cypher_client_id }} # Update this to your own Github references
           client-secret: ${{ secrets.cypher_client_secret }} # Update this to your own Github references
@@ -34,7 +34,7 @@ jobs:
           domain: "https://cypher.ethquokkaops.io"
       
       - name: Checkout the iac repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: ethdevops/internal-stack-iac
           ref: main

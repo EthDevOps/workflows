@@ -82,6 +82,8 @@ jobs:
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7
         with:
           images: ${{ inputs.docker_registry }}/${{ inputs.docker_registry_project }}/${{ github.repository }}
+          flavour: |
+            suffix=${{ inputs.tag_suffix }}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
@@ -89,8 +91,6 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16
         with:
-          flavour: |
-            suffix=${{ inputs.tag_suffix }}
           file: ${{ inputs.dockerfile }}
           context: .
           push: ${{ github.event_name != 'pull_request' }}

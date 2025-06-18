@@ -28,6 +28,10 @@ on:
       dockerfile:
         type: string
         default: Dockerfile
+      tag_suffix:
+        type: string
+        default: ''
+
     secrets:
       docker_registry_user:
         required: true
@@ -85,6 +89,8 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16
         with:
+          flavour: |
+            suffix=${{ inputs.tag_suffix }}
           file: ${{ inputs.dockerfile }}
           context: .
           push: ${{ github.event_name != 'pull_request' }}

@@ -1,0 +1,115 @@
+name: Docker Image build (OpenBao)
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+on:
+  workflow_call:
+    inputs:
+      bao_role:
+        description: "OpenBao jwt-github role name (see github_actions_roles in internal-stack-iac)"
+        type: string
+        required: true
+      bao_secret_path:
+        description: "KV2 path holding the registry credentials, with keys 'user' and 'pass'"
+        type: string
+        required: true
+      bao_address:
+        type: string
+        default: https://tyrell.ethquokkaops.io
+      docker_registry:
+        default: docker.ethquokkaops.io
+        type: string
+      docker_registry_project:
+        default: ethquokkaops
+        type: string
+      use_artifact:
+        type: boolean
+        default: false
+      artifact_path:
+        type: string
+      artifact_name:
+        type: string
+      build_args:
+        type: string
+        description: "JSON string of build arguments to pass to docker build"
+        required: false
+      dockerfile:
+        type: string
+        default: Dockerfile
+      tag_suffix:
+        type: string
+        default: ''
+
+jobs:
+  build-docker-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # Required for the GitHub OIDC token used to authenticate against OpenBao.
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Download artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.artifact_path }}
+        if: ${{ inputs.use_artifact }}
+
+      # Set up BuildKit Docker container builder to be able to build
+      # multi-platform images and export cache
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Fetch registry credentials from OpenBao
+        uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
+        with:
+          url: ${{ inputs.bao_address }}
+          path: jwt-github
+          method: jwt
+          role: ${{ inputs.bao_role }}
+          exportEnv: true
+          secrets: |
+            ${{ inputs.bao_secret_path }} user | DOCKER_REGISTRY_USER ;
+            ${{ inputs.bao_secret_path }} pass | DOCKER_REGISTRY_SECRET
+
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ inputs.docker_registry }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ inputs.docker_registry }}
+          username: ${{ env.DOCKER_REGISTRY_USER }}
+          password: ${{ env.DOCKER_REGISTRY_SECRET }}
+
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7
+        with:
+          images: ${{ inputs.docker_registry }}/${{ inputs.docker_registry_project }}/${{ github.repository }}
+          flavor: |
+            suffix=${{ inputs.tag_suffix }}
+
+      # Build and push Docker image with Buildx (don't push on PR)
+      # https://github.com/docker/build-push-action
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16
+        with:
+          file: ${{ inputs.dockerfile }}
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ inputs.build_args }}

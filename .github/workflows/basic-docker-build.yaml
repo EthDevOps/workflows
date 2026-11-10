@@ -31,6 +31,14 @@ on:
       tag_suffix:
         type: string
         default: ''
+      tags:
+        description: "docker/metadata-action tags (YAML list, newline-separated). Empty = the action's default tag types."
+        type: string
+        default: ''
+      platforms:
+        description: "docker buildx platforms (e.g. linux/amd64,linux/arm64). Empty = runner architecture only."
+        type: string
+        default: ''
 
     secrets:
       docker_registry_user:
@@ -82,6 +90,7 @@ jobs:
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7
         with:
           images: ${{ inputs.docker_registry }}/${{ inputs.docker_registry_project }}/${{ github.repository }}
+          tags: ${{ inputs.tags }}
           flavor: |
             suffix=${{ inputs.tag_suffix }}
 
@@ -93,6 +102,7 @@ jobs:
         with:
           file: ${{ inputs.dockerfile }}
           context: .
+          platforms: ${{ inputs.platforms }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

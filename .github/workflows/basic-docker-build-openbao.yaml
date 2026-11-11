@@ -36,6 +36,10 @@ on:
         type: string
         description: "JSON string of build arguments to pass to docker build"
         required: false
+      build_args_secret_name:
+        type: string
+        description: "Name of a build arg whose value comes from the BUILD_ARG_SECRET secret. The caller must forward the value via the call's secrets: mapping (the secrets context is not available in the caller's with: inputs)."
+        default: ''
       dockerfile:
         type: string
         default: Dockerfile
@@ -50,6 +54,10 @@ on:
         description: "docker buildx platforms (e.g. linux/amd64,linux/arm64). Empty = runner architecture only."
         type: string
         default: ''
+    secrets:
+      BUILD_ARG_SECRET:
+        required: false
+        description: "Value for the build arg named by build_args_secret_name. Callers forward their own secret here."
 
 jobs:
   build-docker-image:
@@ -110,6 +118,35 @@ jobs:
           flavor: |
             suffix=${{ inputs.tag_suffix }}
 
+      # Compose the final build-args JSON. The literal build_args input is
+      # merged with one secret-sourced arg (build_args_secret_name), whose value
+      # the caller forwards via this workflow's BUILD_ARG_SECRET secret. GitHub
+      # does not allow the secrets context in the caller's with: inputs, so the
+      # value arrives this way.
+      - name: Compose build args
+        id: build-args
+        env:
+          BASE_ARGS: ${{ inputs.build_args }}
+          SECRET_ARG_NAME: ${{ inputs.build_args_secret_name }}
+          SECRET_ARG_VALUE: ${{ secrets.BUILD_ARG_SECRET }}
+        run: |
+          args="${BASE_ARGS}"
+          if [ -z "$args" ] || [ "$args" = "null" ]; then
+            args='{}'
+          fi
+          if [ -n "$SECRET_ARG_NAME" ]; then
+            args="$(printf '%s' "$args" | jq -c --arg n "$SECRET_ARG_NAME" --arg v "$SECRET_ARG_VALUE" '. + {($n): $v}')"
+          fi
+          # Keep the historical empty value for callers that pass no build args.
+          if [ "$args" = "{}" ]; then
+            args=''
+          fi
+          {
+            echo "json<<EOF_BUILD_ARGS"
+            printf '%s' "$args"
+            echo "EOF_BUILD_ARGS"
+          } >> "$GITHUB_OUTPUT"
+
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
@@ -122,4 +159,4 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ inputs.build_args }}
+          build-args: ${{ steps.build-args.outputs.json }}
